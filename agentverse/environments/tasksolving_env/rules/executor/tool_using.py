@@ -11,6 +11,8 @@ from agentverse.agents import ExecutorAgent
 from agentverse.message import Message, ExecutorMessage, SolverMessage
 from agentverse.logging import logger
 
+from message_pool.message_pool import messagePool
+
 from . import BaseExecutor, executor_registry
 import asyncio
 
@@ -30,7 +32,7 @@ Now summarize the webpage to answer the question. If the question cannot be answ
 class ToolUsingExecutor(BaseExecutor):
     num_agents: int = 3
     max_tool_call_times: int = 10
-    tools: List[dict] = []
+    tools: List[dict] = []  # 需要确定是否加载成功
     tool_names: List[str] = []
     tool_config: str = None
     cookies: dict = {}
@@ -74,7 +76,7 @@ class ToolUsingExecutor(BaseExecutor):
         plans: List[SolverMessage],
         *args,
         **kwargs,
-    ):
+    ):  # I also need to modify this place ,
         plan_this_turn = {}
         agent_name_this_turn = []
         for i in range(len(plans)):
@@ -94,7 +96,7 @@ class ToolUsingExecutor(BaseExecutor):
                     self.retrieve_tools(plan_this_turn[name], self.tools)
                     for name in agent_name_this_turn
                 ]
-            )
+            )  # return a list
             tools = {
                 name: t[0] for name, t in zip(agent_name_this_turn, tools_and_cookies)
             }
@@ -128,10 +130,19 @@ class ToolUsingExecutor(BaseExecutor):
                     tool = [t for t in tools[name] if t["name"] == "submit_task"]
                 else:
                     tool = tools[name]
+                # logger.info("", tool, Fore.GREEN)
+                partners_list = [
+                    agent_name
+                    for agent_name in agent_name_this_turn
+                    if agent_name.strip() != name.strip()
+                ]
+                partners = " , ".join(partners_list)
+                # logger.info("", partners + "    " + name, Fore.RED)
                 tool_calls.append(
                     self.real_execution_agents[name].astep(
                         task_description,
                         plan_this_turn[name],
+                        partners,
                         tool,
                         current_turn=current_turn + 1,
                     )
@@ -139,9 +150,10 @@ class ToolUsingExecutor(BaseExecutor):
             # Use asyncio.gather to run astep concurrently
             tool_call_decisions = await asyncio.gather(*tool_calls)
             for name, tool_call_result in zip(active_agents_names, tool_call_decisions):
-                self.real_execution_agents[name].add_message_to_memory(
-                    [tool_call_result]
-                )
+                # self.real_execution_agents[name].add_message_to_memory(
+                #    [tool_call_result]
+                # )
+                messagePool.add_messages([tool_call_result])
 
             # Actually call the tool and get the observation
             tool_responses = await asyncio.gather(
@@ -149,6 +161,7 @@ class ToolUsingExecutor(BaseExecutor):
                     ToolUsingExecutor.call_tool(
                         tool.tool_name,
                         tool.tool_input,
+                        name,
                         self.cookies.get(name, None),
                     )
                     for name, tool in zip(active_agents_names, tool_call_decisions)
@@ -160,7 +173,8 @@ class ToolUsingExecutor(BaseExecutor):
                 observation = response["observation"]
                 is_finish = response["is_finish"]
                 cookies[name] = response["cookies"]
-                self.real_execution_agents[name].add_message_to_memory([observation])
+                # self.real_execution_agents[name].add_message_to_memory([observation])
+                messagePool.add_messages([observation])
                 logger.info(
                     f"\nTool: {observation.tool_name}\nTool Input: {observation.tool_input}\nObservation: {observation.content}",
                     name,
@@ -214,7 +228,7 @@ class ToolUsingExecutor(BaseExecutor):
         return tools, cookies
 
     @classmethod
-    async def call_tool(cls, command: str, arguments: dict, cookies=None):
+    async def call_tool(cls, command: str, arguments: dict, user: str, cookies=None):
         async def _summarize_webpage(webpage, question):
             summarize_prompt = Template(SUMMARIZE_PROMPT).safe_substitute(
                 webpage=webpage, question=question
@@ -234,6 +248,7 @@ class ToolUsingExecutor(BaseExecutor):
                 "observation": ExecutorMessage(
                     content=f"Task Status: {arguments['status']}\nConclusion: {arguments['conclusion']}",
                     sender="function",
+                    receiver={user},
                     tool_name=command,
                     tool_input=arguments,
                 ),
@@ -245,6 +260,29 @@ class ToolUsingExecutor(BaseExecutor):
                 "observation": ExecutorMessage(
                     content=f"The function calling format is incorrect.",
                     sender="function",
+                    receiver={user},
+                    tool_name=command,
+                    tool_input=arguments,
+                ),
+                "is_finish": False,
+                "cookies": cookies,
+            }
+        if command == "send_message":
+            # with open("yuan.txt", "a") as f:
+            #   f.write(f"{arguments['message']}\n")
+
+            receivers = set(arguments["partners"].split(","))
+            message = Message(
+                content=arguments["message"], sender=user, receiver=receivers
+            )
+            # logger.info("", message.content, Fore.RED)
+            messagePool.add_messages([message])
+
+            return {
+                "observation": ExecutorMessage(
+                    content=f"send message to {arguments['partners']}",
+                    sender="function",
+                    receiver={user},
                     tool_name=command,
                     tool_input=arguments,
                 ),
@@ -292,6 +330,7 @@ class ToolUsingExecutor(BaseExecutor):
                         message = ExecutorMessage(
                             content=content,
                             sender="function",
+                            receiver={user},
                             tool_name=command,
                             tool_input=arguments,
                         )
@@ -304,6 +343,7 @@ class ToolUsingExecutor(BaseExecutor):
                 message = ExecutorMessage(
                     content="Failed to call the tool. Exception: " + str(e),
                     sender="function",
+                    receiver={user},
                     tool_name=command,
                     tool_input=arguments,
                 )

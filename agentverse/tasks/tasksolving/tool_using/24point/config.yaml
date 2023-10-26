@@ -96,6 +96,10 @@ prompts:
   executor_append_prompt: &executor_append_prompt |-
     You are ${agent_name}. Please use the given functions to complete your sub-task. Do not recite the website. Only access the websites provided by the search engine. When the information is sufficient, or the provided tools cannot complete your task, call the `submit_task` to submit your conclusion and your reflection on the tool use. You have a trial budge of 10, now it is the ${current_turn}'th trial. If it is the last trial, you must call the `submit_task` anyway.
 
+    your parters are ${partners}
+    If you believe that you have achieved something, please call "send_message" to share its specific content with your partners who have been working with you to solve the problem .For example:
+    every time you finish using a tool except "send_message" and "submit_task", please share it with your partners by using "send_message". 
+    
   evaluator_prepend_prompt: &evaluator_prepend_prompt |-
     A group is trying to solve the following query proposed by the user:
     ${task_description}

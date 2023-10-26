@@ -11,7 +11,11 @@ from agentverse.utils import AgentFinish, AgentAction
 
 from agentverse.agents import agent_registry
 from agentverse.agents.base import BaseAgent
+
+from message_pool.message_pool import messagePool
 import requests
+
+import json
 
 logger = get_logger()
 
@@ -21,17 +25,24 @@ class ExecutorAgent(BaseAgent):
     max_history: int = 5
 
     def step(
-        self, task_description: str, solution: str, tools: List[dict] = [], **kwargs
+        self,
+        task_description: str,
+        solution: str,
+        partners: str,
+        tools: List[dict] = [],
+        **kwargs,
     ) -> ExecutorMessage:
         logger.debug("", self.name, Fore.MAGENTA)
         prepend_prompt, append_prompt = self.get_all_prompts(
             task_description=task_description,
             solution=solution,
             agent_name=self.name,
+            partners=partners,
             **kwargs,
         )
 
         history = self.memory.to_messages(self.name, start_index=-self.max_history)
+        # TODO 改变history的获取方式
         parsed_response = None
         for i in range(self.max_retry):
             try:
@@ -53,6 +64,7 @@ class ExecutorAgent(BaseAgent):
             message = ExecutorMessage(
                 content=parsed_response.return_values["output"],
                 sender=self.name,
+                receiver={self.name},
                 sender_agent=self,
             )
         elif isinstance(parsed_response, AgentAction):
@@ -60,6 +72,7 @@ class ExecutorAgent(BaseAgent):
                 content=parsed_response.log,
                 sender=self.name,
                 sender_agent=self,
+                receiver={self.name},
                 tool_name=parsed_response.tool,
                 tool_input=parsed_response.tool_input,
             )
@@ -71,17 +84,24 @@ class ExecutorAgent(BaseAgent):
         return message
 
     async def astep(
-        self, task_description: str, solution: str, tools: List[dict] = [], **kwargs
+        self,
+        task_description: str,
+        solution: str,
+        partners: str,
+        tools: List[dict] = [],
+        **kwargs,
     ) -> ExecutorMessage:
         logger.debug("", self.name, Fore.MAGENTA)
         prepend_prompt, append_prompt = self.get_all_prompts(
             task_description=task_description,
             solution=solution,
             agent_name=self.name,
+            partners=partners,
             **kwargs,
         )
 
-        history = self.memory.to_messages(self.name, start_index=-self.max_history)
+        # history = self.memory.to_messages(self.name, start_index=-self.max_history)
+        history = messagePool.to_messages(self.name, start_index=-self.max_history)
         parsed_response = None
         for i in range(self.max_retry):
             try:
@@ -105,12 +125,14 @@ class ExecutorAgent(BaseAgent):
                 content=parsed_response.return_values["output"],
                 sender=self.name,
                 sender_agent=self,
+                receiver={self.name},
             )
         elif isinstance(parsed_response, AgentAction):
             message = ExecutorMessage(
                 content=parsed_response.log,
                 sender=self.name,
                 sender_agent=self,
+                receiver={self.name},
                 tool_name=parsed_response.tool,
                 tool_input=parsed_response.tool_input,
             )

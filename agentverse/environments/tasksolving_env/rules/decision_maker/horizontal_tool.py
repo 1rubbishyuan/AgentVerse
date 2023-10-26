@@ -52,7 +52,8 @@ class HorizontalToolDecisionMaker(BaseDecisionMaker):
             )
         all_roles = "\n".join(
             [f"{agent.name}: {agent.role_description}" for agent in agents[1:]]
-        )
+        )  # 应该就是要改这里了，把这里改为建立DAG来让计划更加地明确和可见
+        # 大致的思路为：首先把openai的输出按照一定的格式化，然后读取这样的格式化后去根据格式化的输出来提取信息并使用第三方的库来进行DAG的生成
         end_flag = False
         discussion_cnt = 0
         for agent in cycle(agents[1:]):
@@ -66,7 +67,9 @@ class HorizontalToolDecisionMaker(BaseDecisionMaker):
                     # Force all the agents to speak at least once.
                     end_flag = True
             if review.content != "":
-                self.broadcast_messages(agents, [review])
+                self.broadcast_messages(
+                    agents, [review]
+                )  # because of this , criticagents can communacate with each other (utilize memory mechnism)
 
             logger.info("", "Reviews:", Fore.YELLOW)
             logger.info(
@@ -77,13 +80,15 @@ class HorizontalToolDecisionMaker(BaseDecisionMaker):
             if end_flag:
                 break
 
-        result: SolverMessage = agents[0].step(previous_plan, advice, task_description)
+        result: SolverMessage = agents[0].step(
+            previous_plan, advice, task_description
+        )  # What I need to do is normalizing the SolverMessage into DAG
         result_list = []
         for res in result.content:
             res_tmp = deepcopy(result)
             res_tmp.content = " - ".join(res)
-            result_list.append(res_tmp)
-        return result_list
+            result_list.append(res_tmp)  # 大致就是要修改这里，我想要出了输出name和plan外还输出一个可以拓扑排序的信息
+        return result_list  # 目前的agents在做ReAct的过程中之间是没有交流的
 
     def reset(self):
         pass

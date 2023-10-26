@@ -93,7 +93,9 @@ class OpenAIChatArgs(BaseModelArgs):
 #         )
 
 # To support your own local LLMs, register it here and add it into LOCAL_LLMS.
-LOCAL_LLMS = ['llama-2-7b-chat-hf']
+LOCAL_LLMS = ["llama-2-7b-chat-hf"]
+
+
 @llm_registry.register("gpt-35-turbo")
 @llm_registry.register("gpt-3.5-turbo")
 @llm_registry.register("gpt-4")
@@ -111,7 +113,7 @@ class OpenAIChat(BaseChatModel):
             args[k] = kwargs.pop(k, v)
         if len(kwargs) > 0:
             logging.warning(f"Unused arguments: {kwargs}")
-        if args['model'] in LOCAL_LLMS:
+        if args["model"] in LOCAL_LLMS:
             openai.api_base = "http://localhost:5000/v1"
         super().__init__(args=args, max_retry=max_retry)
 

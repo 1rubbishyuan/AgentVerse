@@ -78,27 +78,27 @@
     "bing_search"
   ],
   "tools_json": [
-  {
-    "name": "WebEnv_browse_website",
-    "description": "Browse a website and return the page. Note some websites may not be accessable due to network error.",
-    "parameters": {
-      "type": "object",
-      "properties": {
-        "url": {
-          "type": "string",
-          "description": "The realworld URL to scrape text from. Started with http:// or https://."
+    {
+      "name": "WebEnv_browse_website",
+      "description": "Browse a website and return the page. Note some websites may not be accessable due to network error.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "url": {
+            "type": "string",
+            "description": "The realworld URL to scrape text from. Started with http:// or https://."
+          },
+          "question": {
+            "type": "string",
+            "description": "The question for the website. The function will answer the question by browsing the url."
+          }
         },
-        "question": {
-          "type": "string",
-          "description": "The question for the website. The function will answer the question by browsing the url."
-        }
-      },
-      "required": [
-        "url",
-        "question"
-      ]
-    }
-  },
+        "required": [
+          "url",
+          "question"
+        ]
+      }
+    },
     {
       "name": "run_interpreter",
       "description": "The code interpreter tool that runs code and returns the output.\nThe `code` will be written to file `filename` and the `command` will be executed in a shell. The returned value of this tool is the stdout content. So use `print` to get the important information.\nExample:\n```\nrun_interpreter(code='print(\"hello world\")',command='python code.py')\n```",
@@ -159,6 +159,27 @@
         "required": [
           "status",
           "conclusion"
+        ]
+      }
+    },
+    {
+      "name": "send_message",
+      "description": "send messages to your partners when necessary",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "partners": {
+            "type": "string",
+            "description": "agents who working with you"
+          },
+          "message": {
+            "type": "string",
+            "description": "messages that you want to share"
+          }
+        },
+        "required": [
+          "partners",
+          "message"
         ]
       }
     }

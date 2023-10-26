@@ -71,7 +71,7 @@ class TasksolvingRule(BaseRule):
     def role_assign(
         self,
         task_description: str,
-        agents: List[BaseAgent],
+        agents: List[BaseAgent],#这个类型提示多少有点问题
         cnt_turn: int,
         advice: str = "",
     ) -> List[BaseAgent]:
